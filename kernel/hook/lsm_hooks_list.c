@@ -92,14 +92,22 @@ static __nocfi int ksu_setprocattr_old(struct task_struct *p, char *name, void *
 #define SETPROCATTR_TYPE_new1	const char *, void *, size_t
 #define SETPROCATTR_TYPE_new2	const char *lsm, const char *, void *, size_t
 
-#define OVERLOAD_SETPROCATTR(fn_p) _Generic((fn_p),			\
-	int (*)(SETPROCATTR_TYPE_old)	:(void *)ksu_setprocattr_old,	\
-	int (*)(SETPROCATTR_TYPE_new1)	:(void *)ksu_setprocattr_new, 	\
-	int (*)(SETPROCATTR_TYPE_new2)	:(void *)ksu_setprocattr_new 	\
+/**
+ * workaround for GCC 4.9's broken designated initializer.
+ * - avoid initializing it casted.
+ * e.g. (void *)ksu_setprocattr_old, (void *)ksu_setprocattr_new
+ */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-function-pointer-types"
+#define OVERLOAD_SETPROCATTR(fn_p) _Generic((fn_p),		\
+	int (*)(SETPROCATTR_TYPE_old)	:ksu_setprocattr_old,	\
+	int (*)(SETPROCATTR_TYPE_new1)	:ksu_setprocattr_new, 	\
+	int (*)(SETPROCATTR_TYPE_new2)	:ksu_setprocattr_new 	\
 )
 
 // now choose what we have
 static typeof(security_setprocattr) *ksu_setprocattr __read_mostly = OVERLOAD_SETPROCATTR(security_setprocattr);
+#pragma GCC diagnostic pop
 #undef SETPROCATTR_TYPE_new2
 #undef SETPROCATTR_TYPE_new1
 #undef SETPROCATTR_TYPE_old
